@@ -74,11 +74,11 @@
 
   <WindowSettings>
     <LogicAnalizer>
-      <ShowLACursor>1</ShowLACursor>
-      <ShowSignalInfo>1</ShowSignalInfo>
+      <ShowLACursor>0</ShowLACursor>
+      <ShowSignalInfo>0</ShowSignalInfo>
       <ShowCycles>0</ShowCycles>
-      <LeftSideBarSize>0</LeftSideBarSize>
-      <TimeBaseIndex>-1</TimeBaseIndex>
+      <LeftSideBarSize>50</LeftSideBarSize>
+      <TimeBaseIndex>16</TimeBaseIndex>
     </LogicAnalizer>
   </WindowSettings>
 
