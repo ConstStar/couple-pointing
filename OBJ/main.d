@@ -40,12 +40,11 @@
 ..\obj\main.o: ..\SYSTEM\delay\delay.h
 ..\obj\main.o: ..\SYSTEM\iwdg\iwdg.h
 ..\obj\main.o: ..\SYSTEM\utils\utils.h
+..\obj\main.o: ..\HARDWARE\GPS\gps.h
 ..\obj\main.o: ..\SYSTEM\usart\usart1.h
 ..\obj\main.o: ..\SYSTEM\usart\usart2.h
 ..\obj\main.o: ..\SYSTEM\usart\usart3.h
 ..\obj\main.o: ..\HARDWARE\ESP8266\esp8266.h
 ..\obj\main.o: ..\HARDWARE\OLED\oled.h
 ..\obj\main.o: ..\HARDWARE\LED\led.h
-..\obj\main.o: ..\HARDWARE\PWM\pwm2.h
-..\obj\main.o: ..\HARDWARE\HMC5883\hmc5883.h
-..\obj\main.o: ..\HARDWARE\GPS\gps.h
+..\obj\main.o: ..\HARDWARE\HMC5883L\hmc5883l.h

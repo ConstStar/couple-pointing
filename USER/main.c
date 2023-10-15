@@ -13,21 +13,15 @@
 #include "esp8266.h"
 #include "oled.h"
 #include "led.h"
-#include "pwm2.h"
-#include "hmc5883.h"
+#include "hmc5883l.h"
 #include "gps.h"
 
-//开始任务，创建完任务二和任务三就删除自己
-//任务优先级
-#define START_TASK_PRIO		3
-//任务堆栈大小	
-#define START_STK_SIZE 		128
-//任务控制块
-OS_TCB StartTaskTCB;
-//任务堆栈	
-CPU_STK START_TASK_STK[START_STK_SIZE];
-//任务函数
-void start_task(void *p_arg);
+//开始任务
+#define START_TASK_PRIO		3			//任务优先级
+#define START_STK_SIZE 		128			//任务堆栈大小
+OS_TCB StartTaskTCB;					//任务控制块
+CPU_STK START_TASK_STK[START_STK_SIZE];	//任务堆栈
+void start_task(void *p_arg);			//任务函数
 
 ///MQTT任务
 #define MQTT_TASK_PRIO		4
@@ -36,7 +30,6 @@ OS_TCB mqtt_task_tcb;
 CPU_STK MQTT_TASK_STK[MQTT_STK_SIZE];
 void mqtt_task(void *p_arg);
 
-
 ///OLED显示任务
 #define	OLED_TASK_PRIO		5
 #define OLED_STK_SIZE 		128
@@ -44,13 +37,12 @@ OS_TCB oled_task_tcb;
 CPU_STK OLED_TASK_STK[OLED_STK_SIZE];
 void oled_task(void *p_arg);
 
-
-///操作舵机任务
-#define	PWM_TASK_PRIO		4
-#define PWM_STK_SIZE 		256
-OS_TCB pwm_task_tcb;
-CPU_STK PWM_TASK_STK[PWM_STK_SIZE];
-void pwm_task(void *p_arg);
+///操作指针任务
+#define	POINT_TASK_PRIO		3
+#define POINT_STK_SIZE 		256
+OS_TCB point_task_tcb;
+CPU_STK POINT_TASK_STK[POINT_STK_SIZE];
+void point_task(void *p_arg);
 
 //GPS任务
 #define	GPS_TASK_PRIO		4
@@ -67,12 +59,22 @@ CPU_STK HC14_TASK_STK[HC14_STK_SIZE];
 void hc14_task(void *p_arg);
 
 
-// 对方发来的消息 消息内容暂为16进制gps定位信息
+// OLED信号量，用来通知屏幕更新显示内容
+OS_SEM oled_sem;
+
+
+
+// 对方发来的消息 消息内容为16进制gps定位信息
 extern char mqtt_receive_message[RX_DATA_SIZE];		// 来源于 mqtt
 extern char hc14_receive_message[RX_DATA_SIZE];		// 来源于 hc14
 
+
 // hc14 连接状态 0：未连接 1：连接
 uint8_t hc14_connect_state = 0;
+
+//mqtt 连接状态 0：未连接 1：连接
+extern uint8_t mqtt_connect_state;
+
 
 
 GPS gps_info;			// 我的位置信息
@@ -80,9 +82,6 @@ GPS gps_info_ta;		// 对方的位置信息
 
 double distance = 0;	// 存放距离	km
 double angle = 0;		// 存放方向
-
-
-OS_SEM oled_sem;		// OLED信号量，用来通知屏幕更新显示内容
 
 
 
@@ -100,13 +99,13 @@ int main(void)
 	oled_init();			// 初始化OLED
 	led_init();				// 初始化LED
 	esp8266_init();			// 初始化ESP8266
-	hmc5883_init();			// 初始化电子指南针
-	pwm2_init();			// 初始化舵机
+	hmc5883l_init();		// 初始化电子指南针
 	iwdg_init(25);			// 初始化独立看门狗
-	
+
 #if DEBUG
 	printf("程序启动\r\n");
 #endif
+
 	
 	OSInit(&err);		    //初始化UCOSIII
 	OS_CRITICAL_ENTER();	//进入临界区			 
@@ -186,15 +185,15 @@ void start_task(void *p_arg)
                  (OS_OPT      )OS_OPT_TASK_STK_CHK|OS_OPT_TASK_STK_CLR, 
                  (OS_ERR 	* )&err);
 				 
-	//创建舵机操作任务
-	OSTaskCreate((OS_TCB 	* )&pwm_task_tcb,		
-				 (CPU_CHAR	* )"PWM task", 		
-                 (OS_TASK_PTR )pwm_task, 			
+	//创建操作指针任务
+	OSTaskCreate((OS_TCB 	* )&point_task_tcb,		
+				 (CPU_CHAR	* )"Point task", 		
+                 (OS_TASK_PTR )point_task, 			
                  (void		* )0,					
-                 (OS_PRIO	  )PWM_TASK_PRIO,     	
-                 (CPU_STK   * )&PWM_TASK_STK[0],	
-                 (CPU_STK_SIZE)PWM_STK_SIZE/10,	
-                 (CPU_STK_SIZE)PWM_STK_SIZE,		
+                 (OS_PRIO	  )POINT_TASK_PRIO,     	
+                 (CPU_STK   * )&POINT_TASK_STK[0],	
+                 (CPU_STK_SIZE)POINT_STK_SIZE/10,	
+                 (CPU_STK_SIZE)POINT_STK_SIZE,		
                  (OS_MSG_QTY  )0,					
                  (OS_TICK	  )0,					
                  (void   	* )0,				
@@ -257,13 +256,9 @@ void mqtt_task(void *p_arg)
 #if DEBUG
 			printf("MQTT 已断开连接\r\n");
 #endif
-			led_set_green(0);
 			esp8266_connect_mqtt();
 		}
-		else
-		{
-			led_set_green(1);
-		}
+	
 		
 		OS_CRITICAL_ENTER();
 #if DEBUG
@@ -325,8 +320,6 @@ void hc14_task(void *p_arg)
 		// 则通过HC14来接受数据
 		if(gps_from_message(hc14_receive_message,&gps_info_ta) == 0)
 		{
-			led_set_yellow(1);
-			
 #if DEBUG
 			printf("hc14 receive message\r\n");
 #endif
@@ -340,7 +333,6 @@ void hc14_task(void *p_arg)
 			
 			// 释放信号量
 			OSSemPost(&oled_sem,OS_OPT_POST_1,&err);
-			//OSSemPost(&pwm_sem,OS_OPT_POST_1,&err);
 		}
 		else
 		{
@@ -352,14 +344,17 @@ void hc14_task(void *p_arg)
 #if DEBUG
 				printf("HC14不在线\r\n");
 #endif
-				led_set_yellow(0);
 				hc14_connect_state = 0;
 			}
 		}
 		
-		//通过HC14发送给对方
-		gps_to_message(gps_info,data_buf);
-		usart1_printf("#%s\r\n",data_buf);
+		// 如果数据有效
+		if(gps_info.n[0] != 0 && gps_info.w[0] !=0)
+		{
+			//通过HC14发送给对方
+			gps_to_message(gps_info,data_buf);
+			usart1_printf("#%s\r\n",data_buf);
+		}
 		
 		OS_CRITICAL_EXIT();
 		
@@ -392,6 +387,8 @@ void oled_task(void *p_arg)
 #if DEBUG
 		printf("oled runing...\r\n");
 #endif
+		// 对方的方向角度
+		float ta_angle = angle;
 		
 		oled_clear();
 		char temp_format[50];
@@ -421,14 +418,14 @@ void oled_task(void *p_arg)
 		uint8_t hzk_index[2];
 		
 		// 第一象限
-		if(angle>=0 && angle<=90)
+		if(ta_angle>=0 && ta_angle<=90)
 		{
 			// 更靠近北
-			if(angle>45)
+			if(ta_angle>45)
 			{
 				hzk_index[0] = 3;	//北
 				hzk_index[1] = 0;	//东
-				sprintf(temp_format,"%d",(int)(90-angle));
+				sprintf(temp_format,"%d",(int)(90-ta_angle));
 			}
 			
 			// 更靠近东
@@ -436,19 +433,19 @@ void oled_task(void *p_arg)
 			{
 				hzk_index[0] = 0;	//东
 				hzk_index[1] = 3;	//北
-				sprintf(temp_format,"%d",(int)(angle-0));
+				sprintf(temp_format,"%d",(int)(ta_angle-0));
 			}
 		}
 		
 		// 第二象限
-		else if(angle>=90 && angle<=180)
+		else if(ta_angle>=90 && ta_angle<=180)
 		{
 			// 更靠近西
 			if(angle>135)
 			{
 				hzk_index[0] = 1;	//西
 				hzk_index[1] = 3;	//北
-				sprintf(temp_format,"%d",(int)(180-angle));
+				sprintf(temp_format,"%d",(int)(180-ta_angle));
 			}
 			
 			// 更靠近北
@@ -456,47 +453,47 @@ void oled_task(void *p_arg)
 			{
 				hzk_index[0] = 3;	//北
 				hzk_index[1] = 1;	//西
-				sprintf(temp_format,"%d",(int)(angle-90));
+				sprintf(temp_format,"%d",(int)(ta_angle-90));
 			}
 		}
 		
 		// 第三象限
-		else if(angle>=-180 && angle<=-90)
+		else if(ta_angle>=-180 && ta_angle<=-90)
 		{
 			// 更靠近南
-			if(angle>-135)
+			if(ta_angle>-135)
 			{
-				hzk_index[0] = 3;	//南
+				hzk_index[0] = 2;	//南
 				hzk_index[1] = 1;	//西
-				sprintf(temp_format,"%d",(int)(-90-angle));
+				sprintf(temp_format,"%d",(int)(-90-ta_angle));
 			}
 			
 			// 更靠近西
 			else
 			{
 				hzk_index[0] = 1;	//西
-				hzk_index[1] = 3;	//南
-				sprintf(temp_format,"%d",(int)(angle+180));
+				hzk_index[1] = 2;	//南
+				sprintf(temp_format,"%d",(int)(ta_angle+180));
 			}
 		}
 		
 		// 第四象限
-		else if(angle>=-90 && angle<=0)
+		else if(ta_angle>=-90 && ta_angle<=0)
 		{
 			// 更靠近东
-			if(angle>-45)
+			if(ta_angle>-45)
 			{
 				hzk_index[0] = 0;	//东
-				hzk_index[1] = 3;	//南
-				sprintf(temp_format,"%d",(int)(0-angle));
+				hzk_index[1] = 2;	//南
+				sprintf(temp_format,"%d",(int)(0-ta_angle));
 			}
 			
 			// 更靠近南
 			else
 			{
-				hzk_index[0] = 3;	//南
+				hzk_index[0] = 2;	//南
 				hzk_index[1] = 0;	//东
-				sprintf(temp_format,"%d",(int)(angle+90));
+				sprintf(temp_format,"%d",(int)(ta_angle+90));
 			}
 		}
 		
@@ -585,15 +582,36 @@ void oled_task(void *p_arg)
 		oled_show_chinese(16,2,7);	//新
 		oled_show_chinese(32,2,8);	//于
 		oled_show_string(48,2,temp_format,16);
+		
+		// 网络连接情况
+		if(mqtt_connect_state == 0)
+		{
+			oled_show_string(0,7,"internet offline",12);
+		}
+		else
+		{
+			oled_show_string(0,7,"internet online",12);
+		}
+			
+		// HC14连接情况
+		if(hc14_connect_state == 0)
+		{
+			oled_show_string(0,6,"hc14     offline",12);
+		}
+		else
+		{
+			oled_show_string(0,6,"hc14     online",12);
+		}
+		
 		OS_CRITICAL_EXIT();
 
-		OSTimeDlyHMSM(0,0,2,0,OS_OPT_TIME_HMSM_STRICT,&err); //延时1s
+		OSTimeDlyHMSM(0,0,2,0,OS_OPT_TIME_HMSM_STRICT,&err);
 	}
 }
 
 
-//操作舵机任务函数
-void pwm_task(void *p_arg)
+//操作指针任务函数
+void point_task(void *p_arg)
 {
 	OS_ERR err;
 	CPU_SR_ALLOC();
@@ -607,21 +625,22 @@ void pwm_task(void *p_arg)
 		OS_CRITICAL_ENTER();
 
 #if DEBUG
-		printf("pwm runing...\r\n");
+		printf("point runing...\r\n");
 #endif
+		// 获取当前自身的角度
+		uint16_t self_angle = hmc5883l_get_angle();
+	
+		// 计算对方和自身角度与正南方向的差值
+		uint16_t num = (uint16_t)(self_angle+angle + 90 + 360)%360;
 		
-		double self_angle = hmc5883_get_angle();
-		
-		uint8_t num = (uint32_t)((self_angle+(360-angle))*1000)%360000*0.125/1000+5;
-		
-		pwm2_set_compare1(num);
+		led_set_light_angle(num);
 
 #if DEBUG
-		printf("舵机位置更新%d %lf %lf\r\n",num,self_angle,angle);
+		printf("指针位置更新%d %lf %lf\r\n",num,self_angle,angle);
 #endif
 		
 		OS_CRITICAL_EXIT();
-		OSTimeDlyHMSM(0,0,0,100,OS_OPT_TIME_HMSM_STRICT,&err);
+		OSTimeDlyHMSM(0,0,0,300,OS_OPT_TIME_HMSM_STRICT,&err);
 	}
 }
 

@@ -16,3 +16,5 @@
 ..\obj\utils.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 ..\obj\utils.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 ..\obj\utils.o: ..\SYSTEM\utils\utils.h
+..\obj\utils.o: ..\HARDWARE\GPS\gps.h
+..\obj\utils.o: ..\SYSTEM\usart\usart2.h

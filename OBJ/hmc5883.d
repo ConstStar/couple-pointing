@@ -14,5 +14,9 @@
 ..\obj\hmc5883.o: ..\FWLIB\STM32F10x_FWLib\inc\stm32f10x_usart.h
 ..\obj\hmc5883.o: ..\FWLIB\STM32F10x_FWLib\inc\misc.h
 ..\obj\hmc5883.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
+..\obj\hmc5883.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+..\obj\hmc5883.o: ..\SYSTEM\delay\delay.h
 ..\obj\hmc5883.o: ..\HARDWARE\HMC5883\hmc5883.h
 ..\obj\hmc5883.o: ..\SYSTEM\iic\iic.h
+..\obj\hmc5883.o: ..\HARDWARE\OLED\oled.h
+..\obj\hmc5883.o: ..\HARDWARE\LED\led.h

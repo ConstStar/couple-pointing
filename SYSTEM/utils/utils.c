@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+
 #include "utils.h"
+#include "usart2.h"
 
 const double PI = 3.141592654;
 const double EARTH_RADIUS = 6378.137; 	//地球半径
@@ -126,14 +128,108 @@ double get_distance(double n, double w, double n_ta, double w_ta)
 // 获取两地偏角
 double get_angle(double n, double w, double n_ta, double w_ta)
 {
-	double distance1 = get_distance(n,w,n,w_ta);
-	double distance2 = get_distance(n,w,n_ta,w);
-	
-	if(w<w_ta)
-		distance1=0-distance1;
-	
-	if(n<n_ta)
-		distance2=0-distance2;
-	
-	return atan2(distance2,distance1)* 180 / PI;
+    double distance1 = get_distance(n,w,n,w_ta);
+    double distance2 = get_distance(n,w,n_ta,w);
+
+    if(w>w_ta)
+        distance1=0-distance1;
+
+    if(n>n_ta)
+        distance2=0-distance2;
+
+    return atan2(distance2,distance1)* 180 / PI;
 }
+
+// 从消息内容中提取GPS信息
+// 返回值 0:提取成功 -1:提取失败
+int gps_from_message(char* message,GPS *gps)
+{
+	char gps_buffer_temp[RX_DATA_SIZE];	//临时GPS信息
+	char *p=NULL;
+	
+	if(message[0] == '\0')
+		return -1;
+	
+	strcpy(gps_buffer_temp,message);
+	message[0] = '\0';	// 清空
+	
+	// 分割校验内容 和校验和
+	p = strtok(gps_buffer_temp, "*");
+	if(p == NULL)
+		return -1;
+	
+	GPS gps_info_temp;	// 临时储存的位置信息
+	gps_info_temp.n[0] = 0;
+	gps_info_temp.n[1] = 0;
+	gps_info_temp.w[0] = 0;
+	gps_info_temp.w[1] = 0;
+	gps_info_temp.utc_date = 0;
+	gps_info_temp.utc_time = 0;
+	gps_info_temp.angle = 0;
+
+	// 校验不通过
+	if(check_sum(p,strtok(NULL,"*")) != 0)
+		return -1;
+
+	p = strtok(gps_buffer_temp, ",");
+	if(p == NULL)
+		return -1;
+	
+	sscanf(p,"%x",&gps_info_temp.utc_time);
+	
+	p = strtok(NULL, ",");
+	sscanf(p,"%x",&gps_info_temp.n[0]);
+	
+	p = strtok(NULL, ",");
+	sscanf(p,"%x",&gps_info_temp.n[1]);
+	
+	p = strtok(NULL, ",");
+	sscanf(p,"%x",&gps_info_temp.w[0]);
+	
+	p = strtok(NULL, ",");
+	sscanf(p,"%x",&gps_info_temp.w[1]);
+	
+	p = strtok(NULL, ",");
+	sscanf(p,"%x",&gps_info_temp.utc_date);
+	
+	// 如果位置信息不合理 则忽略
+	if(gps_info_temp.n[0]<=0||gps_info_temp.n[1]<=0||gps_info_temp.w[0]<=0||gps_info_temp.w[1]<=0)
+		return -1;
+	
+	*(gps) = gps_info_temp;
+	
+	return 0;
+}
+
+// 获取GPS两点直接的位置和方向
+void gps_get_distance_and_angle(GPS gps_a,GPS gps_b,double* distance,double* angle)
+{
+	// 我的经纬度信息
+	float gps_n;
+	float gps_w;
+	
+	// 对方的经纬度信息
+	float gps_n_ta;
+	float gps_w_ta;
+	
+	gps_n = gps_a.n[0]/100+(gps_a.n[0]%100+gps_a.n[1]/10000.0)/60.0;
+	gps_w = gps_a.w[0]/100+(gps_a.w[0]%100+gps_a.w[1]/10000.0)/60.0;
+	
+	gps_n_ta = gps_b.n[0]/100+(gps_b.n[0]%100+gps_b.n[1]/10000.0)/60.0;
+	gps_w_ta = gps_b.w[0]/100+(gps_b.w[0]%100+gps_b.w[1]/10000.0)/60.0;
+	
+	(*distance) = get_distance(gps_n,gps_w,gps_n_ta,gps_w_ta);
+	(*angle) = get_angle(gps_n,gps_w,gps_n_ta,gps_w_ta);
+}
+
+// 将GPS信息转成消息内容
+void gps_to_message(GPS gps,char *data_buf)
+{
+	char data_code[3];
+	sprintf(data_buf,"%x,%x,%x,%x,%x,%x",gps.utc_time,gps.n[0],gps.n[1],gps.w[0],gps.w[1],gps.utc_date);
+	get_check_sum(data_buf,data_code);
+	strcat(data_buf,"*");
+	strcat(data_buf,data_code);
+}
+
+

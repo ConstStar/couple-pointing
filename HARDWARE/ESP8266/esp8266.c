@@ -7,18 +7,6 @@
 #include "delay.h"
 #include "includes.h"
 
-#define ESP8266_WIFI_NAME		"test"
-#define ESP8266_WIFI_PASSWORD	"1164442003"
- 
-#define ESP8266_MQTT_ADDR		"39.107.228.202"
-#define ESP8266_MQTT_PORT		1883
- 
-#define MQTT_CLIENT_ID 	"client"		//
-#define MQTT_USERNAME  	""				//名字
-#define MQTT_PASSWORD  	""				//密码
-
-#define MQTT_TOPIC_ME	"position_A"
-#define MQTT_TOPIC_TA	"position_B"
  
 extern char esp8266_buf[RX_DATA_SIZE];
 extern uint8_t esp8266_cnt;
@@ -34,10 +22,8 @@ extern char mqtt_receive_message[RX_DATA_SIZE];
 // 清空缓存
 void esp8266_clear(void)
 {
- 
 	memset(esp8266_buf, 0, sizeof(esp8266_buf));
 	esp8266_cnt = 0;
- 
 }
  
 // 判断消息是否接受完成	需要循环调用
@@ -50,12 +36,10 @@ int esp8266_wait_receive(void)
 	if(esp8266_cnt == esp8266_cntPre)				//如果上一次的值和这次相同，则说明接收完毕
 	{
 		esp8266_cnt = 0;							//清0接收计数
-			
 		return REV_OK;								//返回接收完成标志
 	}
 		
 	esp8266_cntPre = esp8266_cnt;					//置为相同
-	
 	return REV_WAIT;								//返回接收未完成标志
  
 }
@@ -64,11 +48,9 @@ int esp8266_wait_receive(void)
 // 返回值	0 核对正确	-1 核对有误
 int esp8266_send_cmd(const char *cmd, char *res)
 {
-	
 	uint8_t time_out = 200;
- 
-	usart3_send_string(cmd);
 	
+	usart3_send_string(cmd);
 	while(time_out--)
 	{
 		if(esp8266_wait_receive() == REV_OK)							//如果收到数据
@@ -77,7 +59,7 @@ int esp8266_send_cmd(const char *cmd, char *res)
 			//printf("%s\r\n",esp8266_buf); 
 			if(strstr((const char *)esp8266_buf, res) != NULL)		//如果检索到关键词
 			{
-				//printf("%s\r\n",esp8266_buf); 
+				printf("%s\r\n",esp8266_buf); 
 				esp8266_clear();									//清空缓存
 				return 0;
 			}
@@ -195,11 +177,13 @@ void esp8266_connect_mqtt(void)
 #endif
 	
 	while(esp8266_send_cmd("AT\r\n", "OK\r\n"))
+	{
 #ifdef SYSTEM_SUPPORT_OS
 		OSTimeDlyHMSM(0,0,0,500,OS_OPT_TIME_HMSM_STRICT,&err);
 #else		
 		delay_ms(500);
 #endif
+	}
 	
 #if DEBUG
 	printf("1.RST\r\n");
@@ -217,11 +201,13 @@ void esp8266_connect_mqtt(void)
 #endif
 	
 	while(esp8266_send_cmd("AT+CWMODE=1\r\n", "OK\r\n"))
+	{
 #ifdef SYSTEM_SUPPORT_OS
 		OSTimeDlyHMSM(0,0,0,500,OS_OPT_TIME_HMSM_STRICT,&err);
 #else		
 		delay_ms(500);
 #endif
+	}
 	
 #if DEBUG
 	printf("3. CWJAP\r\n");
@@ -229,11 +215,13 @@ void esp8266_connect_mqtt(void)
 	
 	sprintf(temp,"AT+CWJAP=\"%s\",\"%s\"\r\n",ESP8266_WIFI_NAME,ESP8266_WIFI_PASSWORD);
 	while(esp8266_send_cmd(temp, "GOT IP\r\n"))
+	{
 #ifdef SYSTEM_SUPPORT_OS
 		OSTimeDlyHMSM(0,0,0,500,OS_OPT_TIME_HMSM_STRICT,&err);
 #else		
 		delay_ms(500);
 #endif
+	}
 	
 #if DEBUG
 	printf("4. nsend USERCFG\r\n");
@@ -241,11 +229,13 @@ void esp8266_connect_mqtt(void)
 	
 	sprintf(temp, "AT+MQTTUSERCFG=0,1,\"%s\",\"%s\",\"%s\",0,0,\"\"\r\n",MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
 	while(esp8266_send_cmd(temp, "OK\r\n"))
+	{
 #ifdef SYSTEM_SUPPORT_OS
 		OSTimeDlyHMSM(0,0,0,500,OS_OPT_TIME_HMSM_STRICT,&err);
 #else		
 		delay_ms(500);
 #endif
+	}
 	
 #if DEBUG
 	printf("5. nsend MQTTCONN\r\n");
@@ -270,11 +260,13 @@ void esp8266_connect_mqtt(void)
 	
 	sprintf(temp,"AT+MQTTSUB=0,\"%s\",0\r\n", MQTT_TOPIC_ME);
 	while(esp8266_send_cmd(temp,"OK\r\n"))
+	{
 #ifdef SYSTEM_SUPPORT_OS
 		OSTimeDlyHMSM(0,0,0,500,OS_OPT_TIME_HMSM_STRICT,&err);
 #else		
 		delay_ms(500);
 #endif
+	}
 	
 #if DEBUG
 	printf("7. ESP8266 Init OK\r\n");

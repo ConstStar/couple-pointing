@@ -5,10 +5,7 @@
 // 初始化状态指示灯
 void led_init(void);
 
-// 设置 是否亮绿灯
-void led_set_green(uint8_t led);
-
-// 设置 是否亮黄灯
-void led_set_yellow(uint8_t led);
+// 根据角度来设置让哪个灯亮
+void led_set_light_angle(uint16_t angle);
 		 				    
 #endif

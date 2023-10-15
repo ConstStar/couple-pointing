@@ -338,7 +338,7 @@
               <MiscControls></MiscControls>
               <Define>USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\USER;..\CORE;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\SYSTEM\iic;..\SYSTEM\iwdg;..\SYSTEM\utils;..\STM32F10x_FWLib\inc;..\FWLIB\STM32F10x_FWLib\inc;..\HARDWARE\LED;..\HARDWARE\GPS;..\HARDWARE\OLED;..\HARDWARE\FLASH;..\HARDWARE\ESP8266;..\HARDWARE\HMC5883;..\HARDWARE\PWM;..\UCOSIII\uC-CPU;..\UCOSIII\uC-LIB;..\UCOSIII\uCOS-III;..\UCOSIII\UCOS_BSP;..\UCOSIII\uCOS_CONFIG;..\UCOSIII\uCOS-III\Source;..\UCOSIII\uC-CPU\ARM-Cortex-M3\RealView;..\UCOSIII\uC-LIB\Ports\ARM-Cortex-M3\RealView;..\UCOSIII\uCOS-III\Ports\ARM-Cortex-M3\Generic\RealView</IncludePath>
+              <IncludePath>..\USER;..\CORE;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\SYSTEM\iic;..\SYSTEM\iwdg;..\SYSTEM\utils;..\STM32F10x_FWLib\inc;..\FWLIB\STM32F10x_FWLib\inc;..\HARDWARE\LED;..\HARDWARE\GPS;..\HARDWARE\OLED;..\HARDWARE\FLASH;..\HARDWARE\ESP8266;..\HARDWARE\HMC5883L;..\UCOSIII\uC-CPU;..\UCOSIII\uC-LIB;..\UCOSIII\uCOS-III;..\UCOSIII\UCOS_BSP;..\UCOSIII\uCOS_CONFIG;..\UCOSIII\uCOS-III\Source;..\UCOSIII\uC-CPU\ARM-Cortex-M3\RealView;..\UCOSIII\uC-LIB\Ports\ARM-Cortex-M3\RealView;..\UCOSIII\uCOS-III\Ports\ARM-Cortex-M3\Generic\RealView</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -423,19 +423,14 @@
               <FilePath>..\HARDWARE\ESP8266\esp8266.c</FilePath>
             </File>
             <File>
-              <FileName>pwm2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\PWM\pwm2.c</FilePath>
-            </File>
-            <File>
-              <FileName>hmc5883.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\HMC5883\hmc5883.c</FilePath>
-            </File>
-            <File>
               <FileName>gps.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\GPS\gps.c</FilePath>
+            </File>
+            <File>
+              <FileName>hmc5883l.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\HARDWARE\HMC5883L\hmc5883l.c</FilePath>
             </File>
           </Files>
         </Group>
